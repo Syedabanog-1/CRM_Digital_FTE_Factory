@@ -208,3 +208,10 @@ Wait for consent; never auto-create ADRs. Group related decisions (stacks, authe
 
 ## Code Standards
 See `.specify/memory/constitution.md` for code quality, testing, performance, security, and architecture principles.
+
+## Active Technologies
+- Python 3.11+ + mcp (MCP server), openai (LLM calls), pydantic (data models) (001-stage1-incubation)
+- In-memory (dictionaries and lists); no database in this stage (001-stage1-incubation)
+
+## Recent Changes
+- 001-stage1-incubation: Added Python 3.11+ + mcp (MCP server), openai (LLM calls), pydantic (data models)
