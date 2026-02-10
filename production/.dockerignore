@@ -1,0 +1,52 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Environment
+.env
+.env.local
+.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Tests (not needed in production image)
+tests/
+production/tests/
+
+# Documentation
+*.md
+specs/
+history/
+.specify/
+
+# Node.js (web form is separate)
+node_modules/
+web-form/
+
+# Kubernetes
+k8s/
+
+# OS
+.DS_Store
+Thumbs.db
+*.log

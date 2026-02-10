@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fte-worker
+  namespace: fte-production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: fte-worker
+  template:
+    metadata:
+      labels:
+        app: fte-worker
+    spec:
+      containers:
+        - name: worker
+          image: fte-digital-agent:latest
+          command: ["python", "-m", "workers"]
+          envFrom:
+            - configMapRef:
+                name: fte-config
+            - secretRef:
+                name: fte-secrets
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import sys; sys.exit(0)"]
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
