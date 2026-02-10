@@ -88,7 +88,7 @@
 **Independent Test**: `/metrics` endpoint returns valid Prometheus data
 
 - [x] T018 [US4] Add `prometheus-fastapi-instrumentator` to `production/requirements.txt` and instrument the FastAPI app in `production/api/main.py` - add `/metrics` endpoint with default HTTP metrics (request count, duration histogram, in-progress gauge)
-- [ ] T019 [US4] Add custom Prometheus metrics to `production/api/main.py` and `production/workers/message_processor.py`: `fte_tickets_created_total` (counter by channel, category), `fte_escalations_total` (counter by reason), `fte_messages_processed_total` (counter by channel), `fte_processing_duration_seconds` (histogram)
+- [x] T019 [US4] Add custom Prometheus metrics to `production/api/main.py` and `production/workers/message_processor.py`: `fte_tickets_created_total` (counter by channel, category), `fte_escalations_total` (counter by reason), `fte_messages_processed_total` (counter by channel), `fte_processing_duration_seconds` (histogram)
 - [x] T020 [P] [US4] Create `production/monitoring/prometheus.yml` - Prometheus scrape config targeting the API service at `:8000/metrics` and worker metrics, with 15s scrape interval
 - [x] T021 [P] [US4] Create `production/monitoring/grafana-dashboard.json` - Grafana dashboard with 6 panels: Request Rate by Channel, p95 Latency by Endpoint, Error Rate, Kafka Consumer Lag, Active Tickets by Status, Escalation Rate
 - [x] T022 [P] [US4] Create `production/monitoring/alerting-rules.yml` - Prometheus alerting rules: HighLatency (p95 > 3s for 5min), HighErrorRate (>1% for 5min), KafkaLagHigh (>1000 for 10min), DBPoolExhausted (>90% for 5min), ServiceDown (health check fails for 1min)

@@ -20,6 +20,7 @@ from production.config import settings
 from production.database import queries
 from production.agent.formatters import formatter
 from production.logging_config import get_logger
+from production.metrics import TICKETS_CREATED, ESCALATIONS, METRICS_AVAILABLE
 
 logger = get_logger(__name__)
 
@@ -220,6 +221,10 @@ async def create_ticket(input: CreateTicketInput) -> str:
             conversation_id=conversation["id"],
         )
 
+        # Record Prometheus metric
+        if METRICS_AVAILABLE and TICKETS_CREATED:
+            TICKETS_CREATED.labels(channel=input.channel, category=input.category).inc()
+
         return json.dumps({
             "ticket_id": str(ticket["id"]),
             "status": ticket["status"],
@@ -299,6 +304,10 @@ async def escalate_to_human(input: EscalateInput) -> str:
             "escalation", 1.0, channel=channel,
             dimensions={"ticket_id": input.ticket_id, "reason": input.reason},
         )
+
+        # Record Prometheus metric
+        if METRICS_AVAILABLE and ESCALATIONS:
+            ESCALATIONS.labels(reason=input.reason).inc()
 
         # Publish to Kafka escalation topic
         await _publish_to_kafka("fte.escalations", {

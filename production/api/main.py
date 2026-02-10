@@ -24,6 +24,9 @@ try:
 except ImportError:
     PROMETHEUS_AVAILABLE = False
 
+# Import custom metrics (registers them with prometheus_client registry)
+from production.metrics import METRICS_AVAILABLE as _CUSTOM_METRICS  # noqa: F401
+
 logger = get_logger(__name__)
 
 
