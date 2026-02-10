@@ -11,6 +11,7 @@ import time
 from production.config import settings
 from production.database import queries
 from production.logging_config import setup_logging, get_logger, bind_correlation_id
+from production.metrics import MESSAGES_PROCESSED, PROCESSING_DURATION, METRICS_AVAILABLE
 
 logger = get_logger(__name__)
 
@@ -125,7 +126,14 @@ async def process_message(message_data: dict) -> None:
                 token_usage=agent_response.get("token_usage"),
             )
 
-        # 7. Publish metrics
+        # 7. Record Prometheus metrics
+        if METRICS_AVAILABLE:
+            if MESSAGES_PROCESSED:
+                MESSAGES_PROCESSED.labels(channel=channel).inc()
+            if PROCESSING_DURATION:
+                PROCESSING_DURATION.observe(processing_time / 1000.0)
+
+        # 8. Publish metrics to database
         await queries.insert_metric(
             "response_time",
             float(processing_time),

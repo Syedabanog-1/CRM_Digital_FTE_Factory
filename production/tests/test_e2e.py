@@ -15,6 +15,11 @@ import pytest
 import pytest_asyncio
 import httpx
 
+from production.conftest import requires_stack
+
+# Skip entire module if full stack is not available
+pytestmark = [pytest.mark.e2e, requires_stack]
+
 # Base URL for the running API
 BASE_URL = "http://localhost:8000"
 

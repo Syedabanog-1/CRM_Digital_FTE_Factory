@@ -1,0 +1,27 @@
+name: Lint
+
+on:
+  push:
+    branches: ["*"]
+
+jobs:
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install linting tools
+        run: pip install ruff
+
+      - name: Run ruff check
+        run: ruff check src/ production/ tests/ --output-format=github
+
+      - name: Run ruff format check
+        run: ruff format --check src/ production/ tests/

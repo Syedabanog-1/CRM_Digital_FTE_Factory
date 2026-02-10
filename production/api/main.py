@@ -18,6 +18,15 @@ from production.channels.web_form_handler import router as web_form_router
 from production.channels.gmail_handler import router as gmail_router
 from production.channels.whatsapp_handler import router as whatsapp_router
 
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
+
+# Import custom metrics (registers them with prometheus_client registry)
+from production.metrics import METRICS_AVAILABLE as _CUSTOM_METRICS  # noqa: F401
+
 logger = get_logger(__name__)
 
 
@@ -73,6 +82,13 @@ app.add_middleware(
 app.include_router(web_form_router)
 app.include_router(gmail_router)
 app.include_router(whatsapp_router)
+
+# Prometheus metrics instrumentation
+if PROMETHEUS_AVAILABLE:
+    Instrumentator(
+        should_group_status_codes=False,
+        excluded_handlers=["/metrics"],
+    ).instrument(app).expose(app, endpoint="/metrics")
 
 
 # ---- Endpoints ----

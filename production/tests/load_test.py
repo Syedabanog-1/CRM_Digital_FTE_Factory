@@ -9,8 +9,14 @@ Usage:
 
 import random
 import string
-from locust import HttpUser, task, between, events
-from locust.runners import MasterRunner
+
+try:
+    from locust import HttpUser, task, between, events
+    from locust.runners import MasterRunner
+except ImportError:
+    import sys
+    print("locust not installed - load tests unavailable. Install with: pip install locust")
+    sys.exit(0)
 
 
 # ---- Web Form Users (most common channel) ----

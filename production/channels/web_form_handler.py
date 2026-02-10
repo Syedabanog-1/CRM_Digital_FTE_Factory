@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from production.database import queries
 from production.logging_config import get_logger
+from production.metrics import TICKETS_CREATED, METRICS_AVAILABLE
 
 logger = get_logger(__name__)
 
@@ -129,6 +130,10 @@ async def submit_support_form(form: SupportFormInput):
             priority=form.priority,
             conversation_id=conversation["id"],
         )
+
+        # Record Prometheus metric
+        if METRICS_AVAILABLE and TICKETS_CREATED:
+            TICKETS_CREATED.labels(channel="web", category=form.category).inc()
 
         # Store inbound message
         await queries.insert_message(
