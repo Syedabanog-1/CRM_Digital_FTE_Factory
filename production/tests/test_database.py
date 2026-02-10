@@ -16,7 +16,8 @@ import pytest_asyncio
 from production.conftest import requires_postgres
 
 # Skip entire module if PostgreSQL is not available
-pytestmark = [pytest.mark.integration, requires_postgres]
+# All tests share one event loop (module scope) to match the module-scoped pool
+pytestmark = [pytest.mark.integration, requires_postgres, pytest.mark.asyncio(loop_scope="module")]
 
 from production.database import queries
 
@@ -24,7 +25,7 @@ from production.database import queries
 # ---- Fixtures ----
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest_asyncio.fixture(loop_scope="module", scope="module")
 async def db_pool():
     """Create and tear down the database pool for test module."""
     pool = await queries.create_pool()
@@ -32,15 +33,15 @@ async def db_pool():
     await queries.close_pool()
 
 
-@pytest_asyncio.fixture(autouse=True)
+@pytest_asyncio.fixture(loop_scope="module", autouse=True)
 async def cleanup_test_data(db_pool):
     """Clean up test data after each test to avoid interference."""
     yield
     # Clean up test data created during tests (cascade deletes handle children)
-    pool = await queries.get_pool()
-    await pool.execute("DELETE FROM customers WHERE email LIKE '%@test-db.example.com'")
-    await pool.execute("DELETE FROM knowledge_base WHERE category = 'test_category'")
-    await pool.execute("DELETE FROM agent_metrics WHERE dimensions::text LIKE '%test%'")
+    async with db_pool.acquire() as conn:
+        await conn.execute("DELETE FROM agent_metrics WHERE dimensions::text LIKE '%test%'")
+        await conn.execute("DELETE FROM knowledge_base WHERE category = 'test_category'")
+        await conn.execute("DELETE FROM customers WHERE email LIKE '%@test-db.example.com'")
 
 
 # ---- 1. Connection Pool Tests ----
@@ -49,18 +50,15 @@ async def cleanup_test_data(db_pool):
 class TestConnectionPool:
     """Test database connection pool management."""
 
-    @pytest.mark.asyncio
     async def test_create_pool(self, db_pool):
         """Pool should be created and connected."""
         assert db_pool is not None
 
-    @pytest.mark.asyncio
     async def test_health_check(self, db_pool):
         """Database health check should return True when connected."""
         result = await queries.check_db_health()
         assert result is True
 
-    @pytest.mark.asyncio
     async def test_get_pool_returns_existing(self, db_pool):
         """get_pool should return the existing pool, not create a new one."""
         pool = await queries.get_pool()
@@ -73,7 +71,6 @@ class TestConnectionPool:
 class TestCustomerOperations:
     """Test customer CRUD operations."""
 
-    @pytest.mark.asyncio
     async def test_insert_customer(self, db_pool):
         """Should insert a new customer and return the record."""
         customer = await queries.insert_customer(
@@ -87,7 +84,6 @@ class TestCustomerOperations:
         assert customer["name"] == "Test User"
         assert customer["phone"] == "+10001112222"
 
-    @pytest.mark.asyncio
     async def test_insert_customer_lowercases_email(self, db_pool):
         """Email should be lowercased on insert."""
         customer = await queries.insert_customer(
@@ -95,7 +91,6 @@ class TestCustomerOperations:
         )
         assert customer["email"] == "uppercase@test-db.example.com"
 
-    @pytest.mark.asyncio
     async def test_insert_customer_upsert_on_conflict(self, db_pool):
         """Inserting same email should upsert, updating name/phone."""
         c1 = await queries.insert_customer(
@@ -108,7 +103,6 @@ class TestCustomerOperations:
         assert c2["name"] == "Updated"
         assert c2["phone"] == "+19999999999"
 
-    @pytest.mark.asyncio
     async def test_get_customer_by_email(self, db_pool):
         """Should find customer by email."""
         await queries.insert_customer(email="findme@test-db.example.com", name="FindMe")
@@ -116,13 +110,11 @@ class TestCustomerOperations:
         assert customer is not None
         assert customer["name"] == "FindMe"
 
-    @pytest.mark.asyncio
     async def test_get_customer_by_email_not_found(self, db_pool):
         """Should return None for non-existent email."""
         result = await queries.get_customer_by_email("nonexistent@test-db.example.com")
         assert result is None
 
-    @pytest.mark.asyncio
     async def test_get_customer_by_id(self, db_pool):
         """Should find customer by UUID."""
         customer = await queries.insert_customer(
@@ -139,7 +131,6 @@ class TestCustomerOperations:
 class TestCustomerIdentifiers:
     """Test cross-channel customer resolution via identifiers."""
 
-    @pytest.mark.asyncio
     async def test_upsert_customer_identifier(self, db_pool):
         """Should create an identifier linking phone to customer."""
         customer = await queries.insert_customer(
@@ -153,7 +144,6 @@ class TestCustomerIdentifiers:
         assert identifier["type"] == "whatsapp"
         assert identifier["value"] == "+15551234567"
 
-    @pytest.mark.asyncio
     async def test_cross_channel_lookup_by_phone(self, db_pool):
         """Should resolve customer by phone via identifiers."""
         customer = await queries.insert_customer(
@@ -166,7 +156,6 @@ class TestCustomerIdentifiers:
         assert found is not None
         assert found["id"] == customer["id"]
 
-    @pytest.mark.asyncio
     async def test_cross_channel_lookup_by_identifier(self, db_pool):
         """Should resolve customer by arbitrary identifier type."""
         customer = await queries.insert_customer(
@@ -188,7 +177,6 @@ class TestCustomerIdentifiers:
 class TestConversationOperations:
     """Test conversation CRUD with 24-hour active reuse."""
 
-    @pytest.mark.asyncio
     async def test_insert_conversation(self, db_pool):
         """Should create a new conversation."""
         customer = await queries.insert_customer(
@@ -202,7 +190,6 @@ class TestConversationOperations:
         assert conv["channel"] == "web"
         assert conv["status"] == "active"
 
-    @pytest.mark.asyncio
     async def test_get_active_conversation_reuse(self, db_pool):
         """Active conversation within 24h should be reused."""
         customer = await queries.insert_customer(
@@ -213,7 +200,6 @@ class TestConversationOperations:
         assert conv2 is not None
         assert conv2["id"] == conv1["id"]
 
-    @pytest.mark.asyncio
     async def test_get_active_conversation_none_when_resolved(self, db_pool):
         """Resolved conversation should not be returned as active."""
         customer = await queries.insert_customer(
@@ -224,7 +210,6 @@ class TestConversationOperations:
         active = await queries.get_active_conversation(customer["id"], "web")
         assert active is None
 
-    @pytest.mark.asyncio
     async def test_update_conversation_sentiment(self, db_pool):
         """Should update sentiment score on conversation."""
         customer = await queries.insert_customer(
@@ -235,7 +220,6 @@ class TestConversationOperations:
         updated = await queries.get_conversation(conv["id"])
         assert updated["sentiment_score"] == pytest.approx(0.75, abs=0.01)
 
-    @pytest.mark.asyncio
     async def test_get_conversations_by_customer(self, db_pool):
         """Should return customer's recent conversations."""
         customer = await queries.insert_customer(
@@ -253,7 +237,6 @@ class TestConversationOperations:
 class TestMessageOperations:
     """Test message insertion and retrieval."""
 
-    @pytest.mark.asyncio
     async def test_insert_and_get_messages(self, db_pool):
         """Should insert inbound+outbound messages and retrieve in order."""
         customer = await queries.insert_customer(
@@ -289,7 +272,6 @@ class TestMessageOperations:
 class TestTicketOperations:
     """Test ticket lifecycle management."""
 
-    @pytest.mark.asyncio
     async def test_insert_ticket(self, db_pool):
         """Should create a ticket with proper defaults."""
         customer = await queries.insert_customer(
@@ -303,7 +285,6 @@ class TestTicketOperations:
         assert ticket["priority"] == "high"
         assert ticket["category"] == "Technical Support"
 
-    @pytest.mark.asyncio
     async def test_ticket_lifecycle(self, db_pool):
         """Should update ticket status through lifecycle."""
         customer = await queries.insert_customer(
@@ -319,7 +300,6 @@ class TestTicketOperations:
         assert updated["status"] == "escalated"
         assert "Pricing inquiry" in updated["resolution_notes"]
 
-    @pytest.mark.asyncio
     async def test_get_tickets_by_customer(self, db_pool):
         """Should return customer's tickets."""
         customer = await queries.insert_customer(
@@ -337,7 +317,6 @@ class TestTicketOperations:
 class TestKnowledgeBase:
     """Test knowledge base CRUD and vector search."""
 
-    @pytest.mark.asyncio
     async def test_insert_knowledge_entry(self, db_pool):
         """Should insert a knowledge base entry."""
         entry = await queries.insert_knowledge_entry(
@@ -348,7 +327,6 @@ class TestKnowledgeBase:
         assert entry is not None
         assert entry["title"] == "How to Reset Password"
 
-    @pytest.mark.asyncio
     async def test_insert_knowledge_entry_with_embedding(self, db_pool):
         """Should insert with a vector embedding."""
         # Create a dummy 1536-dim embedding
@@ -361,7 +339,6 @@ class TestKnowledgeBase:
         )
         assert entry is not None
 
-    @pytest.mark.asyncio
     async def test_search_knowledge_base_returns_results(self, db_pool):
         """Vector search should return results when embeddings exist."""
         # Insert entry with embedding
@@ -380,7 +357,6 @@ class TestKnowledgeBase:
         assert len(results) >= 1
         assert results[0]["title"] is not None
 
-    @pytest.mark.asyncio
     async def test_search_knowledge_base_no_results(self, db_pool):
         """Vector search should return empty list when nothing matches."""
         # Search with very different embedding (unlikely to match)
@@ -397,7 +373,6 @@ class TestKnowledgeBase:
 class TestChannelConfigs:
     """Test channel configuration operations."""
 
-    @pytest.mark.asyncio
     async def test_get_channel_config_email(self, db_pool):
         """Should return email channel config seeded by schema."""
         config = await queries.get_channel_config("email")
@@ -405,21 +380,18 @@ class TestChannelConfigs:
         assert config["enabled"] is True
         assert config["max_response_length"] == 500
 
-    @pytest.mark.asyncio
     async def test_get_channel_config_whatsapp(self, db_pool):
         """Should return WhatsApp channel config."""
         config = await queries.get_channel_config("whatsapp")
         assert config is not None
         assert config["max_response_length"] == 300
 
-    @pytest.mark.asyncio
     async def test_get_channel_config_web(self, db_pool):
         """Should return web channel config."""
         config = await queries.get_channel_config("web")
         assert config is not None
         assert config["max_response_length"] == 300
 
-    @pytest.mark.asyncio
     async def test_get_channel_config_nonexistent(self, db_pool):
         """Should return None for non-existent channel."""
         config = await queries.get_channel_config("smoke_signal")
@@ -432,7 +404,6 @@ class TestChannelConfigs:
 class TestMetricsOperations:
     """Test metrics recording and aggregation."""
 
-    @pytest.mark.asyncio
     async def test_insert_metric(self, db_pool):
         """Should record a metric data point."""
         metric = await queries.insert_metric(
@@ -444,7 +415,6 @@ class TestMetricsOperations:
         assert metric["metric_value"] == pytest.approx(250.5)
         assert metric["channel"] == "web"
 
-    @pytest.mark.asyncio
     async def test_get_channel_metrics_aggregation(self, db_pool):
         """Should aggregate metrics by channel."""
         # Insert several metrics

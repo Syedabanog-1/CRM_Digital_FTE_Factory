@@ -2,8 +2,6 @@
 # Usage: docker-compose up -d
 # Run from: production/ directory
 
-version: "3.9"
-
 services:
   # PostgreSQL with pgvector
   postgres:

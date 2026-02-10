@@ -119,7 +119,7 @@ during specialization:
 | Database | PostgreSQL + pgvector | 16+ |
 | Streaming | Apache Kafka (aiokafka) | Latest |
 | Orchestration | Kubernetes | 1.28+ |
-| Web Form | Next.js / React | Latest |
+| Web Form | React / Tailwind | Latest |
 | Email | Gmail API + Pub/Sub | v1 |
 | WhatsApp | Twilio WhatsApp API | Latest |
 | MCP | Model Context Protocol | Latest |
@@ -157,11 +157,11 @@ The agent MUST escalate (never answer directly) when:
 
 All work MUST follow the three-stage structure:
 
-1. **Stage 1 (Incubation)**: `specs/stage1-incubation/` - Prototype,
+1. **Stage 1 (Incubation)**: `specs/001-stage1-incubation/` - Prototype,
    MCP server, discovery, skills manifest.
-2. **Stage 2 (Specialization)**: `specs/stage2-specialization/` -
+2. **Stage 2 (Specialization)**: `specs/002-stage2-specialization/` -
    Production agent, channels, database, Kafka, Kubernetes.
-3. **Stage 3 (Integration)**: `specs/stage3-integration/` - E2E tests,
+3. **Stage 3 (Integration)**: `specs/003-stage3-integration/` - E2E tests,
    load tests, documentation, runbooks.
 
 Each stage uses the full SpecifyPlus workflow: `/sp.specify` then
