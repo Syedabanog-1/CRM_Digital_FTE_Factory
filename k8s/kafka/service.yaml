@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-service
+  namespace: fte-production
+spec:
+  selector:
+    app: kafka
+  ports:
+    - name: kafka
+      port: 9092
+      targetPort: 9092
+    - name: zookeeper
+      port: 2181
+      targetPort: 2181
+  type: ClusterIP

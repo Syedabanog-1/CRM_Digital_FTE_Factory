@@ -212,6 +212,8 @@ See `.specify/memory/constitution.md` for code quality, testing, performance, se
 ## Active Technologies
 - Python 3.11+ + mcp (MCP server), openai (LLM calls), pydantic (data models) (001-stage1-incubation)
 - In-memory (dictionaries and lists); no database in this stage (001-stage1-incubation)
+- Python 3.11+ (backend), TypeScript/React (web form) + openai + agents SDK, fastapi, asyncpg, aiokafka, pydantic, twilio, google-api-python-client, google-cloud-pubsub, httpx (002-stage2-specialization)
+- PostgreSQL 16+ with pgvector extension (8 tables) (002-stage2-specialization)
 
 ## Recent Changes
 - 001-stage1-incubation: Added Python 3.11+ + mcp (MCP server), openai (LLM calls), pydantic (data models)

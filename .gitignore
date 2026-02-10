@@ -26,3 +26,15 @@ Thumbs.db
 .pytest_cache/
 htmlcov/
 .coverage
+
+# Node.js (web-form)
+node_modules/
+web-form/dist/
+web-form/build/
+*.log
+
+# Docker
+*.secret.yaml
+
+# Kubernetes
+k8s/secrets.yaml
