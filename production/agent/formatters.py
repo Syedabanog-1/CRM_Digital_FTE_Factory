@@ -107,7 +107,7 @@ class ChannelFormatter:
         last_space = truncated.rfind(" ")
         if last_space > 0:
             return truncated[:last_space] + "..."
-        return truncated + "..."
+        return truncated[:max_chars]
 
     def split_whatsapp_message(self, message: str) -> list[str]:
         """Split a long message into multiple WhatsApp messages at sentence boundaries."""

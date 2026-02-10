@@ -311,7 +311,7 @@ class TestWhatsAppWebhook:
             "production.channels.whatsapp_handler._validate_twilio_signature",
             return_value=True,
         ):
-            with patch("production.channels.whatsapp_handler.publish", new_callable=AsyncMock):
+            with patch("production.kafka_client.publish", new_callable=AsyncMock):
                 result = await whatsapp_webhook(mock_request)
         assert result["status"] == "accepted"
         assert "wa_1234567890" in result["message_id"]
