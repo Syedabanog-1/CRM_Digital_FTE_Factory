@@ -214,6 +214,8 @@ See `.specify/memory/constitution.md` for code quality, testing, performance, se
 - In-memory (dictionaries and lists); no database in this stage (001-stage1-incubation)
 - Python 3.11+ (backend), TypeScript/React (web form) + openai + agents SDK, fastapi, asyncpg, aiokafka, pydantic, twilio, google-api-python-client, google-cloud-pubsub, httpx (002-stage2-specialization)
 - PostgreSQL 16+ with pgvector extension (8 tables) (002-stage2-specialization)
+- Prometheus + Grafana (monitoring), GitHub Actions (CI/CD), Locust (load testing), Docker Compose (integration testing) (003-stage3-integration)
 
 ## Recent Changes
 - 001-stage1-incubation: Added Python 3.11+ + mcp (MCP server), openai (LLM calls), pydantic (data models)
+- 003-stage3-integration: Added monitoring (Prometheus/Grafana), CI/CD (GitHub Actions), test orchestration scripts, 5 operational runbooks, production readiness documentation

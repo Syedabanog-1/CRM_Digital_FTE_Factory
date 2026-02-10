@@ -13,6 +13,11 @@ from uuid import UUID, uuid4
 import pytest
 import pytest_asyncio
 
+from production.conftest import requires_postgres
+
+# Skip entire module if PostgreSQL is not available
+pytestmark = [pytest.mark.integration, requires_postgres]
+
 from production.database import queries
 
 

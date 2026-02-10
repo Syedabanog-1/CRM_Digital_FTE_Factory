@@ -19,3 +19,9 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "unit: Unit tests (no infrastructure required)",
+    "integration: Integration tests (requires docker-compose stack)",
+    "e2e: End-to-end pipeline tests (requires full stack)",
+    "load: Load/performance tests (requires running API)",
+]
