@@ -62,14 +62,18 @@ async def get_producer():
     try:
         from aiokafka import AIOKafkaProducer
 
-        _producer = AIOKafkaProducer(
+        producer = AIOKafkaProducer(
             bootstrap_servers=settings.kafka_brokers,
             value_serializer=_json_serializer,
+            request_timeout_ms=5000,
+            metadata_max_age_ms=5000,
         )
-        await _producer.start()
+        await producer.start()
+        _producer = producer
         logger.info("kafka_producer_started", brokers=settings.kafka_brokers)
         return _producer
     except Exception as e:
+        _producer = None
         logger.warning("kafka_producer_failed", error=str(e))
         return None
 

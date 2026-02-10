@@ -1,5 +1,6 @@
 # Stage 2 Local Development Stack
 # Usage: docker-compose up -d
+# Run from: production/ directory
 
 version: "3.9"
 
@@ -30,7 +31,7 @@ services:
     ports:
       - "2181:2181"
 
-  # Apache Kafka
+  # Apache Kafka (dual listeners: internal for containers, external for host)
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     depends_on:
@@ -38,7 +39,10 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     ports:
@@ -51,13 +55,15 @@ services:
 
   # FastAPI Application
   api:
-    build: .
-    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    build:
+      context: ..
+      dockerfile: production/Dockerfile
+    command: uvicorn production.api.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://fte:fte_password@postgres:5432/fte_crm
-      KAFKA_BROKERS: kafka:9092
+      KAFKA_BROKERS: kafka:29092
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
@@ -69,16 +75,24 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     volumes:
-      - .:/app
+      - ..:/app
 
   # Message Processor Worker
   worker:
-    build: .
-    command: python -m workers
+    build:
+      context: ..
+      dockerfile: production/Dockerfile
+    command: python -m production.workers
     environment:
       DATABASE_URL: postgresql://fte:fte_password@postgres:5432/fte_crm
-      KAFKA_BROKERS: kafka:9092
+      KAFKA_BROKERS: kafka:29092
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
@@ -89,7 +103,7 @@ services:
       kafka:
         condition: service_healthy
     volumes:
-      - .:/app
+      - ..:/app
 
   # Prometheus (metrics collection)
   prometheus:
