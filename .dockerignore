@@ -13,11 +13,10 @@ htmlcov/
 .vscode/
 .idea/
 node_modules/
-web-form/
+web-form/node_modules/
 k8s/
 specs/
 history/
 .specify/
-*.md
 *.log
 nul

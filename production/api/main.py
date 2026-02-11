@@ -8,8 +8,12 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from uuid import UUID
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from production.config import settings
 from production.database import queries
@@ -17,6 +21,7 @@ from production.logging_config import setup_logging, get_logger, bind_correlatio
 from production.channels.web_form_handler import router as web_form_router
 from production.channels.gmail_handler import router as gmail_router
 from production.channels.whatsapp_handler import router as whatsapp_router
+from production.api.auth_router import router as auth_router
 
 try:
     from prometheus_fastapi_instrumentator import Instrumentator
@@ -30,6 +35,35 @@ from production.metrics import METRICS_AVAILABLE as _CUSTOM_METRICS  # noqa: F40
 logger = get_logger(__name__)
 
 
+async def _apply_schema():
+    """Apply database schema on startup (idempotent - uses IF NOT EXISTS).
+
+    Executes each statement individually so pgvector extension failure
+    doesn't block the rest of the schema.
+    """
+    schema_paths = [
+        Path(__file__).resolve().parent.parent / "database" / "schema.sql",
+        Path("/app/production/database/schema.sql"),
+    ]
+    for path in schema_paths:
+        if path.is_file():
+            pool = await queries.get_pool()
+            sql = path.read_text()
+            # Split on semicolons and execute each statement
+            statements = [s.strip() for s in sql.split(";") if s.strip()]
+            applied = 0
+            for stmt in statements:
+                try:
+                    await pool.execute(stmt)
+                    applied += 1
+                except Exception as e:
+                    # pgvector extension or vector columns may fail on free tiers
+                    logger.warning("schema_stmt_skipped", error=str(e)[:120])
+            logger.info("schema_applied", path=str(path), statements=applied, total=len(statements))
+            return
+    logger.warning("schema_file_not_found")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
@@ -40,6 +74,9 @@ async def lifespan(app: FastAPI):
     # Create database pool
     await queries.create_pool()
     logger.info("database_pool_created")
+
+    # Auto-apply schema (idempotent)
+    await _apply_schema()
 
     # Start Kafka producer
     try:
@@ -78,7 +115,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include channel routers
+# Include routers
+app.include_router(auth_router)
 app.include_router(web_form_router)
 app.include_router(gmail_router)
 app.include_router(whatsapp_router)
@@ -92,6 +130,12 @@ if PROMETHEUS_AVAILABLE:
 
 
 # ---- Endpoints ----
+
+
+@app.get("/ping")
+async def ping():
+    """Simple liveness probe - no dependencies required."""
+    return {"status": "ok"}
 
 
 @app.get("/health")
@@ -222,3 +266,34 @@ async def channel_metrics(
 ):
     """Get per-channel performance metrics for the given time period."""
     return await queries.get_channel_metrics(hours=hours, channel=channel)
+
+
+# ---- Static frontend serving ----
+# Serve the React web form build if available
+_STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "web-form" / "build"
+_STATIC_DIR_ALT = Path("/app/web-form/build")
+
+_frontend_dir = None
+if _STATIC_DIR.is_dir():
+    _frontend_dir = _STATIC_DIR
+elif _STATIC_DIR_ALT.is_dir():
+    _frontend_dir = _STATIC_DIR_ALT
+
+if _frontend_dir:
+    # Serve static assets (JS, CSS, etc.) under /static
+    _static_assets = _frontend_dir / "static"
+    if _static_assets.is_dir():
+        app.mount("/static", StaticFiles(directory=str(_static_assets)), name="static-assets")
+
+    @app.get("/", response_class=FileResponse)
+    async def serve_frontend():
+        """Serve the frontend web form."""
+        return FileResponse(str(_frontend_dir / "index.html"))
+
+    @app.get("/{path:path}")
+    async def serve_frontend_fallback(path: str):
+        """Serve frontend static files or fall back to index.html for SPA routing."""
+        file_path = _frontend_dir / path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(_frontend_dir / "index.html"))

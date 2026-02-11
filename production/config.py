@@ -46,9 +46,17 @@ class Settings(BaseSettings):
     )
     gmail_user_id: str = Field(default="me", description="Gmail user ID")
 
+    # JWT Authentication
+    jwt_secret_key: str = Field(
+        default="fte-local-dev-secret-change-in-prod",
+        description="JWT signing key",
+    )
+    jwt_algorithm: str = Field(default="HS256", description="JWT algorithm")
+    jwt_expire_minutes: int = Field(default=60, description="Token expiry minutes")
+
     # API
     cors_origins: str = Field(
-        default="http://localhost:3000",
+        default="http://localhost:3000,http://localhost:8000",
         description="Comma-separated CORS allowed origins",
     )
     api_host: str = Field(default="0.0.0.0", description="API host")

@@ -137,6 +137,17 @@ CREATE INDEX IF NOT EXISTS idx_am_metric_name ON agent_metrics (metric_name);
 CREATE INDEX IF NOT EXISTS idx_am_channel ON agent_metrics (channel);
 CREATE INDEX IF NOT EXISTS idx_am_recorded_at ON agent_metrics (recorded_at);
 
+-- 9. users: Application user accounts for authentication
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email);
+
 -- Seed channel configurations
 INSERT INTO channel_configs (channel, enabled, max_response_length, config) VALUES
     ('email', TRUE, 500, '{"tone": "formal", "unit": "words"}'),

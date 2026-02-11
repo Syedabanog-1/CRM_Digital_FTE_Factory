@@ -1,0 +1,48 @@
+# Render.com Blueprint - CRM Digital FTE Factory
+# Deploy: https://render.com/deploy → connect GitHub repo
+# This creates: 1 Web Service (API + Frontend) + 1 PostgreSQL database
+
+databases:
+  - name: fte-crm-db
+    plan: free
+    databaseName: fte_crm
+    user: fte
+    postgresMajorVersion: "16"
+    ipAllowList: []
+
+services:
+  # Backend API (serves React frontend too)
+  - type: web
+    name: fte-crm-api
+    plan: free
+    runtime: docker
+    dockerfilePath: production/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fte-crm-db
+          property: connectionURI
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: KAFKA_BROKERS
+        value: ""
+      - key: TWILIO_ACCOUNT_SID
+        value: ""
+      - key: TWILIO_AUTH_TOKEN
+        value: ""
+      - key: GMAIL_CREDENTIALS_JSON
+        value: ""
+    healthCheckPath: /ping
+    buildFilter:
+      paths:
+        - production/**
+        - web-form/**
+        - src/**
+        - context/**
