@@ -1,0 +1,14 @@
+# Local service patch
+# Changes ClusterIP to NodePort so the API is accessible from the host
+apiVersion: v1
+kind: Service
+metadata:
+  name: fte-api-service
+  namespace: fte-production
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 8000
+      nodePort: 30080
+      protocol: TCP

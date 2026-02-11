@@ -1,0 +1,19 @@
+# Root kustomization - delegates to base/
+# For local dev, use: kubectl apply -k k8s/overlays/local
+# For production base, use: kubectl apply -k k8s/base
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - deployment-api.yaml
+  - deployment-worker.yaml
+  - service.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - postgres/deployment.yaml
+  - postgres/service.yaml
+  - kafka/deployment.yaml
+  - kafka/service.yaml

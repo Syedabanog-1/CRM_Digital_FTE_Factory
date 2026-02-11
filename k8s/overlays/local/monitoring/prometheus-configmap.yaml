@@ -1,0 +1,26 @@
+# Prometheus configuration as a ConfigMap
+# Targets the fte-api service within the fte-local namespace
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: fte-local
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    rule_files:
+      - "/etc/prometheus/alerting-rules.yml"
+
+    scrape_configs:
+      - job_name: "fte-api"
+        static_configs:
+          - targets: ["fte-api-service:80"]
+        metrics_path: /metrics
+        scrape_interval: 10s
+
+      - job_name: "prometheus"
+        static_configs:
+          - targets: ["localhost:9090"]

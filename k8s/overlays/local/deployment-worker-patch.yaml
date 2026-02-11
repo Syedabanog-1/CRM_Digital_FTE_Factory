@@ -1,0 +1,19 @@
+# Local Worker deployment patch
+# - 1 replica instead of 3
+# - Fix command path to match Dockerfile (production.workers)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fte-worker
+  namespace: fte-production
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: worker
+          imagePullPolicy: IfNotPresent
+          command:
+            - "python"
+            - "-m"
+            - "production.workers"

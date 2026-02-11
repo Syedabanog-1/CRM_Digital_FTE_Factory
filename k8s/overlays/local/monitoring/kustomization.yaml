@@ -1,0 +1,12 @@
+# Monitoring sub-kustomization for local deployment
+# Deploys Prometheus and Grafana into the fte-local namespace
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - prometheus-configmap.yaml
+  - alerting-rules-configmap.yaml
+  - prometheus-deployment.yaml
+  - prometheus-service.yaml
+  - grafana-deployment.yaml
+  - grafana-service.yaml

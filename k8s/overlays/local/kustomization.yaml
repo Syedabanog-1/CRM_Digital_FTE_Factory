@@ -1,0 +1,67 @@
+# Local development overlay for Minikube deployment
+# Overrides production defaults: single replica, NodePort, relaxed probes, correct image
+#
+# Build with: kubectl kustomize k8s/overlays/local --load-restrictor LoadRestrictionsNone
+# Apply with: kubectl kustomize k8s/overlays/local --load-restrictor LoadRestrictionsNone | kubectl apply -f -
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: fte-local
+
+resources:
+  # Base manifests (excluding HPA and ingress - not needed locally)
+  - ../../namespace.yaml
+  - ../../configmap.yaml
+  - ../../secrets.yaml
+  - ../../deployment-api.yaml
+  - ../../deployment-worker.yaml
+  - ../../service.yaml
+  - ../../postgres/deployment.yaml
+  - ../../postgres/service.yaml
+  - ../../kafka/deployment.yaml
+  - ../../kafka/service.yaml
+  # Local monitoring stack
+  - monitoring/
+
+patches:
+  - path: configmap-patch.yaml
+  - path: secrets-patch.yaml
+  - path: deployment-api-patch.yaml
+  - path: deployment-worker-patch.yaml
+  - path: service-patch.yaml
+  # Rename the Namespace resource from fte-production to fte-local
+  - target:
+      kind: Namespace
+      name: fte-production
+    patch: |
+      - op: replace
+        path: /metadata/name
+        value: fte-local
+      - op: replace
+        path: /metadata/labels/stage
+        value: local
+  # Set imagePullPolicy: IfNotPresent on kafka containers (zookeeper + kafka)
+  - target:
+      kind: Deployment
+      name: kafka
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+      - op: add
+        path: /spec/template/spec/containers/1/imagePullPolicy
+        value: IfNotPresent
+  # Set imagePullPolicy: IfNotPresent on postgres container
+  - target:
+      kind: Deployment
+      name: postgres
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+
+# Rewrite the image to the Docker Hub image
+images:
+  - name: fte-digital-agent
+    newName: syedagulzarbano/agent-maturity-model
+    newTag: latest
