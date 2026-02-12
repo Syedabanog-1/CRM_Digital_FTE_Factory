@@ -1,26 +1,32 @@
 """Authentication utilities: password hashing and JWT token management."""
 
 from datetime import datetime, timedelta, timezone
+import hashlib
+import secrets
 
-from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from production.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 
 def hash_password(password: str) -> str:
-    """Hash a plaintext password using bcrypt."""
-    return pwd_context.hash(password)
+    """Hash a plaintext password using SHA-256 with salt."""
+    salt = secrets.token_hex(16)
+    pw_hash = hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+    return f"{salt}${pw_hash}"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plaintext password against a bcrypt hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify a plaintext password against a salted SHA-256 hash."""
+    try:
+        salt, pw_hash = hashed_password.split("$", 1)
+        return hashlib.sha256(f"{salt}{plain_password}".encode()).hexdigest() == pw_hash
+    except (ValueError, AttributeError):
+        return False
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
