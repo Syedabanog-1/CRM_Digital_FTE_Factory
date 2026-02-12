@@ -138,6 +138,42 @@ async def ping():
     return {"status": "ok"}
 
 
+@app.get("/debug/schema")
+async def debug_schema():
+    """Debug endpoint: check tables and apply schema."""
+    results = {"tables_before": [], "schema_apply": [], "tables_after": [], "errors": []}
+    try:
+        pool = await queries.get_pool()
+        rows = await pool.fetch("SELECT tablename FROM pg_tables WHERE schemaname='public'")
+        results["tables_before"] = [r["tablename"] for r in rows]
+
+        # Try applying schema
+        schema_paths = [
+            Path(__file__).resolve().parent.parent / "database" / "schema.sql",
+            Path("/app/production/database/schema.sql"),
+        ]
+        for path in schema_paths:
+            if path.is_file():
+                sql = path.read_text()
+                statements = [s.strip() for s in sql.split(";") if s.strip()]
+                for i, stmt in enumerate(statements):
+                    try:
+                        await pool.execute(stmt)
+                        results["schema_apply"].append(f"OK[{i}]: {stmt[:60]}")
+                    except Exception as e:
+                        results["schema_apply"].append(f"FAIL[{i}]: {stmt[:60]} => {str(e)[:100]}")
+                        results["errors"].append(str(e)[:200])
+                break
+        else:
+            results["errors"].append("schema.sql not found")
+
+        rows = await pool.fetch("SELECT tablename FROM pg_tables WHERE schemaname='public'")
+        results["tables_after"] = [r["tablename"] for r in rows]
+    except Exception as e:
+        results["errors"].append(f"pool_error: {str(e)[:200]}")
+    return results
+
+
 @app.get("/health")
 async def health_check():
     """Health check for liveness and readiness probes."""
