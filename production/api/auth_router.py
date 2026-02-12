@@ -29,49 +29,59 @@ async def signup(req: SignupRequest):
             detail="Password must be at least 6 characters",
         )
 
-    pool = await get_pool()
+    try:
+        pool = await get_pool()
 
-    # Check if user already exists
-    existing = await pool.fetchrow(
-        "SELECT id FROM users WHERE email = $1", req.email
-    )
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists",
+        # Check if user already exists
+        existing = await pool.fetchrow(
+            "SELECT id FROM users WHERE email = $1", req.email
+        )
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An account with this email already exists",
+            )
+
+        password_hash = hash_password(req.password)
+        row = await pool.fetchrow(
+            "INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id",
+            req.email,
+            req.name,
+            password_hash,
         )
 
-    password_hash = hash_password(req.password)
-    row = await pool.fetchrow(
-        "INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id",
-        req.email,
-        req.name,
-        password_hash,
-    )
-
-    return {"message": "Account created successfully", "user_id": str(row["id"])}
+        return {"message": "Account created successfully", "user_id": str(row["id"])}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Signup error: {type(e).__name__}: {str(e)[:200]}")
 
 
 @router.post("/login")
 async def login(req: LoginRequest):
     """Authenticate user and return JWT access token."""
-    pool = await get_pool()
+    try:
+        pool = await get_pool()
 
-    user = await pool.fetchrow(
-        "SELECT id, name, email, password_hash FROM users WHERE email = $1", req.email
-    )
-    if not user or not verify_password(req.password, user["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+        user = await pool.fetchrow(
+            "SELECT id, name, email, password_hash FROM users WHERE email = $1", req.email
+        )
+        if not user or not verify_password(req.password, user["password_hash"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
+
+        token = create_access_token(
+            data={"sub": str(user["id"]), "email": user["email"], "name": user["name"]}
         )
 
-    token = create_access_token(
-        data={"sub": str(user["id"]), "email": user["email"], "name": user["name"]}
-    )
-
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user_name": user["name"],
-    }
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user_name": user["name"],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login error: {type(e).__name__}: {str(e)[:200]}")
